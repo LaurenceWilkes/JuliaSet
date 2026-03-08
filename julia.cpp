@@ -4,6 +4,7 @@
 #include <thread>
 #include <fstream>
 #include <algorithm>
+#include <atomic>
 
 using namespace std;
 
@@ -34,8 +35,8 @@ Colour palette(float t) {
 }
 
 struct JuliaRenderer {
-    const int width = 3200;
-    const int height = 2000;
+    const int width = 12800;
+    const int height = 8000;
     const int maxIter = 1000;
 
     const double xmin = -1.8;
@@ -43,8 +44,8 @@ struct JuliaRenderer {
     const double ymin = -1.2;
     const double ymax = 1.2;
 
-    const int tile = 64;
-    const int rowSkip = tile * tile / width;
+//    const int tile = 64;
+//    const int rowSkip = max(1, tile * tile / width);
 
     const Complex c = {-0.7, 0.256};
 
@@ -64,24 +65,13 @@ struct JuliaRenderer {
 	    z.r = zr2 - zi2 + c.r;
 	    n++;
 	}
-	return n - log2(log(z.magnitude2()) / 2); // Calculations double, floats stored
+	return n - log2(log(z.magnitude2()) / 2); // Calculations are performed as doubles, floats are stored
     } // escapeTest
 
     inline void pixelToComplex(int px, int py, Complex& z) {
 	z.r = xmin + (xmax - xmin) * px / width;
 	z.i = ymin + (ymax - ymin) * py / height;
     } // pixelToComplex
-
-    void renderTile(int x0, int x1, int y0, int y1) {
-        for (int y = y0; y < y1; y++) {
-            for (int x = x0; x < x1; x++) {
-                Complex z;
-		pixelToComplex(x, y, z);
-		float val = escapeTest(z);
-		img.data[y * width + x] = val;
-            }
-        }
-    } // renderTile
 
     void renderRows(int y0, int y1) {
         for (int y = y0; y < y1; y++) {
@@ -94,31 +84,28 @@ struct JuliaRenderer {
         }
     } // renderRows
 
-    void renderParallelTile() {
-	vector<thread> workers;
-
-	for (int ty = 0; ty < height; ty += tile) {
-	    for (int tx = 0; tx < width; tx += tile) {
-	        int x1 = min(tx + tile, width);
-	        int y1 = min(ty + tile, height);
-		workers.emplace_back(&JuliaRenderer::renderTile, this, tx, x1, ty, y1);
-	    }
-	}
-	for (auto& t : workers) t.join();
-    } // renderParallel
-
     void renderParallelRows() {
+	int threadNum = thread::hardware_concurrency();
+	cout << "There are " << threadNum << " possible concurrent threads." << endl;
+
+	int rowSkip = max(1, height / (8 * threadNum));
+
 	vector<thread> workers;
+	workers.reserve(threadNum);
 
-	int ty = 0;
-	while (ty < height) {
-	    int y1 = min(ty + rowSkip, height);
-	    workers.emplace_back(&JuliaRenderer::renderRows, this, ty, y1);
-	    ty += rowSkip;
-	}
+	atomic<int> nextRow = 0;
+	auto worker = [&]() {
+	    while (true) {
+		int y0 = nextRow.fetch_add(rowSkip);
+		if (y0 >= height) return;
+		int y1 = min(y0 + rowSkip, height);
+		renderRows(y0, y1);
+	    }
+	};
 
-	for (auto& t : workers) t.join();
-    } // renderParallel
+	for (int t = 0; t < threadNum; ++t) workers.emplace_back(worker);
+	for (thread& w : workers) w.join();
+    }
 
     void saveImg() {
         ofstream out("julia.ppm", ios::binary);
@@ -145,7 +132,7 @@ struct JuliaRenderer {
 
 int main() {
     JuliaRenderer jr;
-    jr.renderParallelTile();
+    jr.renderParallelRows();
     jr.saveImg();
 
     cout << "Image rendered and saved" << endl;
