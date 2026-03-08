@@ -96,7 +96,7 @@ struct JuliaRenderer {
 	atomic<int> nextRow = 0;
 	auto worker = [&]() {
 	    while (true) {
-		int y0 = nextRow.fetch_add(rowSkip);
+		int y0 = nextRow.fetch_add(rowSkip, memory_order_relaxed);
 		if (y0 >= height) return;
 		int y1 = min(y0 + rowSkip, height);
 		renderRows(y0, y1);
