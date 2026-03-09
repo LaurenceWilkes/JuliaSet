@@ -5,6 +5,7 @@
 #include <fstream>
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 
 using namespace std;
 
@@ -21,6 +22,8 @@ struct Image {
     vector<float> data;
 
     Image(int w, int h) : width(w), height(h), data(width * height, 0) {}
+
+    void clear() { fill(data.begin(), data.end(), 0.0); } // clear
 }; // Image
 
 struct Colour { unsigned char r, g, b; }; // Colour
@@ -35,17 +38,14 @@ Colour palette(float t) {
 }
 
 struct JuliaRenderer {
-    const int width = 12800;
-    const int height = 8000;
+    const int width = 25600;
+    const int height = 16000;
     const int maxIter = 1000;
 
     const double xmin = -1.8;
     const double xmax = 1.8;
     const double ymin = -1.2;
     const double ymax = 1.2;
-
-//    const int tile = 64;
-//    const int rowSkip = max(1, tile * tile / width);
 
     const Complex c = {-0.7, 0.256};
 
@@ -73,8 +73,9 @@ struct JuliaRenderer {
 	z.i = ymin + (ymax - ymin) * py / height;
     } // pixelToComplex
 
-    void renderRows(int y0, int y1) {
-        for (int y = y0; y < y1; y++) {
+    void simpleRender() {
+	auto startTime = chrono::high_resolution_clock::now();
+        for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 Complex z;
 		pixelToComplex(x, y, z);
@@ -82,29 +83,52 @@ struct JuliaRenderer {
 		img.data[y * width + x] = val;
             }
         }
-    } // renderRows
+	auto endTime = chrono::high_resolution_clock::now();
+	float duration = chrono::duration_cast<chrono::milliseconds>(endTime - startTime).count();
+	cout << "Time taken is " << duration / 1000 << " seconds (Simple)." << endl;
 
-    void renderParallelRows() {
+    } // simpleRender
+
+    void renderTile(int x0, int x1, int y0, int y1) {
+        for (int y = y0; y < y1; y++) {
+            for (int x = x0; x < x1; x++) {
+                Complex z;
+		pixelToComplex(x, y, z);
+		float val = escapeTest(z);
+		img.data[y * width + x] = val;
+            }
+        }
+    } // renderTile
+
+    void renderParallel() {
 	int threadNum = thread::hardware_concurrency();
-	cout << "There are " << threadNum << " possible concurrent threads." << endl;
+	// cout << "There are " << threadNum << " possible concurrent threads." << endl;
 
-	int rowSkip = max(1, height / (8 * threadNum));
+	int tile = 64;
 
 	vector<thread> workers;
 	workers.reserve(threadNum);
 
-	atomic<int> nextRow = 0;
+	atomic<int> nextTile = 0;
+	int wcount = (width + tile - 1) / tile;
 	auto worker = [&]() {
 	    while (true) {
-		int y0 = nextRow.fetch_add(rowSkip, memory_order_relaxed);
+		int id = nextTile.fetch_add(1, memory_order_relaxed);
+		int x0 = tile * (id % wcount);
+		int y0 = tile * (id / wcount);
 		if (y0 >= height) return;
-		int y1 = min(y0 + rowSkip, height);
-		renderRows(y0, y1);
+		int x1 = min(x0 + tile, width);
+		int y1 = min(y0 + tile, height);
+		renderTile(x0, x1, y0, y1);
 	    }
 	};
 
+	auto startTime = chrono::high_resolution_clock::now();
 	for (int t = 0; t < threadNum; ++t) workers.emplace_back(worker);
 	for (thread& w : workers) w.join();
+	auto endTime = chrono::high_resolution_clock::now();
+	float duration = chrono::duration_cast<chrono::milliseconds>(endTime - startTime).count();
+	cout << "Time taken is " << duration / 1000 << " seconds with size " << tile << " tiles." << endl;
     }
 
     void saveImg() {
@@ -127,12 +151,11 @@ struct JuliaRenderer {
 	    }
 	}
     } // saveImg
-
 }; // JuliaRenderer
 
 int main() {
     JuliaRenderer jr;
-    jr.renderParallelRows();
+    jr.renderParallel();
     jr.saveImg();
 
     cout << "Image rendered and saved" << endl;
