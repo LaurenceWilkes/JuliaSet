@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "third_party/stb/stb_image_write.h"
 
 using namespace std;
 
@@ -38,8 +40,8 @@ Colour palette(float t) {
 }
 
 struct JuliaRenderer {
-    const int width = 25600;
-    const int height = 16000;
+    const int width = 12800;
+    const int height = 8000;
     const int maxIter = 1000;
 
     const double xmin = -1.8;
@@ -50,8 +52,9 @@ struct JuliaRenderer {
     const Complex c = {-0.7, 0.256};
 
     Image img;
+    vector<unsigned char> pixels;
 
-    JuliaRenderer() : img(width, height) {}
+    JuliaRenderer() : img(width, height), pixels(width * height * 3) {}
 
     inline float escapeTest(Complex& z) {
 	int n = 0;
@@ -65,6 +68,7 @@ struct JuliaRenderer {
 	    z.r = zr2 - zi2 + c.r;
 	    n++;
 	}
+	if (n == maxIter) return maxIter;
 	return n - log2(log(z.magnitude2()) / 2); // Calculations are performed as doubles, floats are stored
     } // escapeTest
 
@@ -72,22 +76,6 @@ struct JuliaRenderer {
 	z.r = xmin + (xmax - xmin) * px / width;
 	z.i = ymin + (ymax - ymin) * py / height;
     } // pixelToComplex
-
-    void simpleRender() {
-	auto startTime = chrono::high_resolution_clock::now();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                Complex z;
-		pixelToComplex(x, y, z);
-		float val = escapeTest(z);
-		img.data[y * width + x] = val;
-            }
-        }
-	auto endTime = chrono::high_resolution_clock::now();
-	float duration = chrono::duration_cast<chrono::milliseconds>(endTime - startTime).count();
-	cout << "Time taken is " << duration / 1000 << " seconds (Simple)." << endl;
-
-    } // simpleRender
 
     void renderTile(int x0, int x1, int y0, int y1) {
         for (int y = y0; y < y1; y++) {
@@ -132,25 +120,22 @@ struct JuliaRenderer {
     }
 
     void saveImg() {
-        ofstream out("julia.ppm", ios::binary);
-
-	out << "P6\n"
-	    << width << " "
-	    << height << "\n255\n";
-
 	for (int y = 0; y < height; y++) {
 	    for (int x = 0; x < width; x++) {
-	        float v = img.data[y * width + x];
-		Colour c;
+		float v = img.data[y * width + x];
 		float t = v / maxIter;
-		c = palette(t);
-
-		out.put(c.r);
-		out.put(c.g);
-		out.put(c.b);
+		Colour c = palette(t);
+		int idx = (y * width + x) * 3;
+		pixels[idx]     = c.r;
+		pixels[idx + 1] = c.g;
+		pixels[idx + 2] = c.b;
 	    }
 	}
-    } // saveImg
+
+	int success = stbi_write_png("julia.png", width, height, 3, pixels.data(), width * 3);
+
+	if (!success) { cerr << "Failed to write PNG\n"; }
+    }
 }; // JuliaRenderer
 
 int main() {
