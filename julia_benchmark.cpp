@@ -2,10 +2,11 @@
 #include <vector>
 #include <cmath>
 #include <thread>
-#include <fstream>
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "third_party/stb/stb_image_write.h"
 
 using namespace std;
 
@@ -208,25 +209,22 @@ struct JuliaRenderer {
     }
 
     void saveImg() {
-        ofstream out("julia.ppm", ios::binary);
-
-	out << "P6\n"
-	    << width << " "
-	    << height << "\n255\n";
-
 	for (int y = 0; y < height; y++) {
 	    for (int x = 0; x < width; x++) {
-	        float v = img.data[y * width + x];
-		Colour c;
+		float v = img.data[y * width + x];
 		float t = v / maxIter;
-		c = palette(t);
-
-		out.put(c.r);
-		out.put(c.g);
-		out.put(c.b);
+		Colour c = palette(t);
+		int idx = (y * width + x) * 3;
+		pixels[idx]     = c.r;
+		pixels[idx + 1] = c.g;
+		pixels[idx + 2] = c.b;
 	    }
 	}
-    } // saveImg
+
+	int success = stbi_write_png("julia.png", width, height, 3, pixels.data(), width * 3);
+
+	if (!success) { cerr << "Failed to write PNG\n"; }
+    }
 }; // JuliaRenderer
 
 int main() {
