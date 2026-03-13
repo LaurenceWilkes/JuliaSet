@@ -8,7 +8,7 @@
 #include <CL/cl.h>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "third_party/stb/stb_image_write.h"
+#include "third_party/stb/stb_image_write.h" // Unfortunately, stb doesn't seem to work with larger images i.e. > 2E8 pixels
 
 using namespace std;
 
@@ -34,6 +34,9 @@ struct JuliaRenderer {
     const float xmax = 1.8f;
     const float ymin = -1.2f;
     const float ymax = 1.2f;
+
+    const float dx = (xmax - xmin) / width;
+    const float dy = (ymax - ymin) / height;
 
     const float cr = -0.7f;
     const float ci = 0.256f;
@@ -75,34 +78,33 @@ struct JuliaRenderer {
         cl_kernel kernel = clCreateKernel(program, "julia", &err);
 
         size_t imgSize = width * height * sizeof(float);
-
         cl_mem outBuffer = clCreateBuffer(context, CL_MEM_WRITE_ONLY, imgSize, nullptr, &err);
 
         int arg = 0;
-        err = clSetKernelArg(kernel, arg++, sizeof(cl_mem), &outBuffer);
+        err  = clSetKernelArg(kernel, arg++, sizeof(cl_mem), &outBuffer);
         err |= clSetKernelArg(kernel, arg++, sizeof(int), &width);
         err |= clSetKernelArg(kernel, arg++, sizeof(int), &height);
         err |= clSetKernelArg(kernel, arg++, sizeof(int), &maxIter);
         err |= clSetKernelArg(kernel, arg++, sizeof(float), &xmin);
-        err |= clSetKernelArg(kernel, arg++, sizeof(float), &xmax);
         err |= clSetKernelArg(kernel, arg++, sizeof(float), &ymin);
-        err |= clSetKernelArg(kernel, arg++, sizeof(float), &ymax);
+        err |= clSetKernelArg(kernel, arg++, sizeof(float), &dx);
+        err |= clSetKernelArg(kernel, arg++, sizeof(float), &dy);
         err |= clSetKernelArg(kernel, arg++, sizeof(float), &cr);
         err |= clSetKernelArg(kernel, arg++, sizeof(float), &ci);
         if (err != CL_SUCCESS) { cerr << "Arg error:\n" << endl; exit(1); }
 
         size_t global[2] = {(size_t) width, (size_t) height};
 
-        auto startTime = chrono::high_resolution_clock::now();
+        auto startTime = chrono::high_resolution_clock::now(); // Start calculation
 
         clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr);
         clFinish(queue);
 
-        auto endKernel = chrono::high_resolution_clock::now();
+        auto endKernel = chrono::high_resolution_clock::now(); // End kernel calculation
 
         clEnqueueReadBuffer(queue, outBuffer, CL_TRUE, 0, imgSize, img.data(), 0, nullptr, nullptr);
 
-        auto endTotal = chrono::high_resolution_clock::now();
+        auto endTotal = chrono::high_resolution_clock::now(); // End read buffer
 
         double kernelTime = chrono::duration<double>(endKernel - startTime).count();
         double totalTime = chrono::duration<double>(endTotal - startTime).count();
@@ -130,7 +132,7 @@ struct JuliaRenderer {
 	    }
 	}
 
-	int success = stbi_write_png("julia.png", width, height, 3, pixels.data(), width * 3);
+	int success = stbi_write_png("juliaGPU.png", width, height, 3, pixels.data(), width * 3);
 	if (!success) { cerr << "Failed to write PNG\n"; }
     }
 };

@@ -3,9 +3,9 @@ __kernel void julia(__global float *output,
 		    int height,
 		    int maxIter,
 		    float xmin,
-		    float xmax,
 		    float ymin,
-		    float ymax,
+		    float dx,
+		    float dy,
 		    float cr,
 		    float ci) {
     int x = get_global_id(0);
@@ -13,8 +13,8 @@ __kernel void julia(__global float *output,
 
     if (x >= width || y >= height) return;
 
-    float zr = xmin + (xmax - xmin) * x / width;
-    float zi = ymin + (ymax - ymin) * y / height;
+    float zr = xmin + dx * x;
+    float zi = ymin + dy * y;
 
     int n = 0;
     while (n < maxIter) {
