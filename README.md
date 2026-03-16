@@ -10,7 +10,7 @@ This is a clear example where using the GPU is advantageous, since the computati
 
 ### Performance
 
-Running `julia.cpp` on the test configuration produced the following timings on my laptop:
+Running `julia.cpp` on the test configuration produced the following timings on my laptop with integrated intel graphics:
 
 | Method | Time |
 |------|------|
