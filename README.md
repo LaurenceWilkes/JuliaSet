@@ -1,4 +1,4 @@
-## Julia Set Renderer
+## Julia Set parallel tests
 
 This project renders a Julia set using three different approaches:
 
@@ -6,9 +6,11 @@ This project renders a Julia set using three different approaches:
 - Multithreaded CPU implementation
 - GPU implementation using OpenCL
 
+This is a clear example where using the GPU is advantageous, since the computation for each pixel is independent of all others.
+
 ### Performance
 
-Running `julia.cpp` on the test configuration produced the following timings:
+Running `julia.cpp` on the test configuration produced the following timings on my laptop:
 
 | Method | Time |
 |------|------|
@@ -50,11 +52,11 @@ third_party/stb/
 
 ## Compilation
 
-For my future reference, I compile with:
+For my own future reference, I compile with:
 
 ```
 g++ julia.cpp -O2 -L. -lOpenCL -pthread -o julia
 ```
 
-due to libOpenCL.a being in the directory
+with libOpenCL.a being in the directory.
 
