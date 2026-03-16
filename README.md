@@ -20,7 +20,7 @@ Running `julia.cpp` on the test configuration produced the following timings on 
 
 test config:
 ```
-const int width = 6400; 
+const int width = 6400;
 const int height = 4000;
 const int maxIter = 1000;
 
@@ -28,6 +28,8 @@ const float xmin = -1.8;
 const float xmax = 1.8;
 const float ymin = -1.2;
 const float ymax = 1.2;
+
+const int rounds = 3;
 
 const float cr = -0.7f;
 const float ci = 0.256f;

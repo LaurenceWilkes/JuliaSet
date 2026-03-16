@@ -26,6 +26,8 @@ struct Parameters {
     const float ymin = -1.2;
     const float ymax = 1.2;
 
+    const int rounds = 3;
+
     const float cr = -0.7f;
     const float ci = 0.256f;
 }; // Parameters
@@ -232,7 +234,7 @@ struct JuliaRenderer {
 }; // JuliaRenderer
 
 int main() {
-    const int rounds = 3;
+    Parameters p;
 
     JuliaRenderer jr;
 
@@ -243,7 +245,7 @@ int main() {
     cout << "done\n";
 
     double timePlain = 0, timeThreads = 0, timeGPU = 0;
-    for (int i = 0; i < rounds; i++) {
+    for (int i = 0; i < p.rounds; i++) {
 	timePlain += jr.renderPlain();
 	jr.img.clear();
 	timeThreads += jr.renderThreads();
@@ -251,9 +253,9 @@ int main() {
 	timeGPU += jr.renderGPU();
 	jr.img.clear();
     }
-    cout << "Time for plain algorithm: " << timePlain / rounds << " seconds.\n";
-    cout << "Time for multithreaded algorithm: " << timeThreads / rounds << " seconds.\n";
-    cout << "Time for GPU-based algorithm: " << timeGPU / rounds << " seconds.\n";
+    cout << "Time for plain algorithm: " << timePlain / p.rounds << " seconds.\n";
+    cout << "Time for multithreaded algorithm: " << timeThreads / p.rounds << " seconds.\n";
+    cout << "Time for GPU-based algorithm: " << timeGPU / p.rounds << " seconds.\n";
 
     jr.saveImg();
     cout << "Image rendered and saved" << endl;
