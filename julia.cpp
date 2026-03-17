@@ -17,19 +17,19 @@
 using namespace std;
 
 struct Parameters {
-    const int width = 6400;
-    const int height = 4000;
-    const int maxIter = 1000;
+    const int width = 6400;    // Pixel width
+    const int height = 4000;   // Pixel height
+    const int maxIter = 1000;  // Iterations of escape test
 
-    const float xmin = -1.8;
-    const float xmax = 1.8;
-    const float ymin = -1.2;
-    const float ymax = 1.2;
+    const float xmin = -1.8;   // Frame bounds
+    const float xmax = 1.8;    // x - real axis
+    const float ymin = -1.2;   // y - imaginary
+    const float ymax = 1.2;    //
 
-    const int rounds = 3;
+    const int trials = 3;      // Benchmarking trials
 
-    const float cr = -0.7f;
-    const float ci = 0.256f;
+    const float cr = -0.7f;    // Complex constant defining
+    const float ci = 0.256f;   // the Julia set
 }; // Parameters
 
 struct Image {
@@ -245,7 +245,7 @@ int main() {
     cout << "done\n";
 
     double timePlain = 0, timeThreads = 0, timeGPU = 0;
-    for (int i = 0; i < p.rounds; i++) {
+    for (int i = 0; i < p.trials; i++) {
 	timePlain += jr.renderPlain();
 	jr.img.clear();
 	timeThreads += jr.renderThreads();
@@ -253,11 +253,12 @@ int main() {
 	timeGPU += jr.renderGPU();
 	jr.img.clear();
     }
-    cout << "Time for plain algorithm: " << timePlain / p.rounds << " seconds.\n";
-    cout << "Time for multithreaded algorithm: " << timeThreads / p.rounds << " seconds.\n";
-    cout << "Time for GPU-based algorithm: " << timeGPU / p.rounds << " seconds.\n";
+    cout << "Time for plain algorithm: " << timePlain / p.trials << " seconds.\n";
+    cout << "Time for multithreaded algorithm: " << timeThreads / p.trials << " seconds.\n";
+    cout << "Time for GPU-based algorithm: " << timeGPU / p.trials << " seconds.\n";
 
-    jr.saveImg();
+    jr.renderGPU(); // Render image properly
+    jr.saveImg();   //
     cout << "Image rendered and saved" << endl;
 
     return 0;
